@@ -1,20 +1,27 @@
+
 """
 api.py — Main FastAPI entry point for InkGuard.
 
-Start with:
+Local development:
     uvicorn api:app --host 0.0.0.0 --port 8000 --reload
+
+Production:
+    uvicorn api:app --host 0.0.0.0 --port $PORT
 
 Routes
 ------
-GET  /health   — liveness + Supabase connectivity status
-POST /check    — check ad-copy text against approved rules and facts
+GET  /       — Serve the InkGuard frontend
+GET  /health — Liveness + Supabase connectivity status
+POST /check  — Check ad-copy against approved rules and facts
 """
 
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 import db
 import engine
@@ -28,8 +35,15 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Application-level cache: load rules and facts once at startup.
-# Module-level lists are patchable by tests.
+# Paths
+# backend/api.py -> project_root/frontend/index.html
+# ---------------------------------------------------------------------------
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+FRONTEND_FILE = PROJECT_ROOT / "frontend" / "index.html"
+
+# ---------------------------------------------------------------------------
+# Application-level cache
 # ---------------------------------------------------------------------------
 
 RULES: list[dict] = []
@@ -38,16 +52,19 @@ FACTS: list[dict] = []
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Load rules and facts from Supabase (or seed.json fallback) at startup."""
+    """Load rules and facts at startup."""
     global RULES, FACTS
+
     RULES = db.load_rules()
     FACTS = db.load_facts()
+
     log.info(
         "Startup: %d rules, %d facts loaded (Supabase: %s).",
         len(RULES),
         len(FACTS),
         db.supabase_available(),
     )
+
     yield
 
 
@@ -58,23 +75,43 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Allow the frontend to talk to the backend in local development.
-# Restrict origins in production to your actual domain.
+# Same-origin frontend/backend deployment.
+# Keep CORS enabled for local development or any other required origins.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["POST", "GET", "OPTIONS"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
 
 # ---------------------------------------------------------------------------
-# Routes
+# Frontend
+# ---------------------------------------------------------------------------
+
+@app.get("/", include_in_schema=False)
+def serve_frontend():
+    """Serve the InkGuard website from the same public URL as the API."""
+    if not FRONTEND_FILE.is_file():
+        log.error("Frontend file not found: %s", FRONTEND_FILE)
+        raise HTTPException(
+            status_code=500,
+            detail="Frontend file is missing from the deployment.",
+        )
+
+    return FileResponse(
+        path=str(FRONTEND_FILE),
+        media_type="text/html",
+    )
+
+
+# ---------------------------------------------------------------------------
+# API routes
 # ---------------------------------------------------------------------------
 
 @app.get("/health")
 def health():
-    """Liveness probe. Also reports whether Supabase is reachable."""
+    """Report API status and Supabase connectivity."""
     return {
         "status": "ok",
         "rules_loaded": len(RULES),
@@ -88,38 +125,51 @@ def check_content(request: CheckRequest):
     """
     Check advertisement copy against approved brand rules and facts.
 
-    - Deterministic rule checks (banned terms, numeric claims) always run.
-    - AI tone checks (Groq) run when the LLM is configured and tone rules exist.
-    - AI failure never suppresses deterministic findings.
+    Deterministic checks always run.
+    AI tone checks run when approved tone rules exist.
+    AI failures do not suppress deterministic findings.
     """
     if not request.text or not request.text.strip():
-        raise HTTPException(status_code=422, detail="text must not be empty")
+        raise HTTPException(
+            status_code=422,
+            detail="text must not be empty",
+        )
 
-    # Reload data on every request so the dev server picks up live changes.
-    # In production, replace this with a background refresh / cache.
+    # Load current rules and facts for each request.
     rules = db.load_rules()
     facts = db.load_facts()
 
-    # Deterministic checks — always authoritative.
+    # Deterministic checks.
     findings = engine.check(request.text, rules, facts)
 
-    # AI tone checks — optional and additive.
+    # Optional AI tone checks.
     tone_rules = [
-        r for r in rules
-        if r.get("type") == "tone" and r.get("approved") is True
+        rule
+        for rule in rules
+        if rule.get("type") == "tone"
+        and rule.get("approved") is True
     ]
 
     ai_available = False
+
     if tone_rules:
         try:
-            ai_findings = llm.ai_findings(request.text, tone_rules)
+            ai_findings = llm.ai_findings(
+                request.text,
+                tone_rules,
+            )
             findings.extend(ai_findings)
             ai_available = True
+
         except llm.AIUnavailable as exc:
-            # Log the reason without exposing credentials or provider internals.
-            log.info("AI unavailable (%s); deterministic findings only.", exc)
-            ai_available = False
+            log.info(
+                "AI unavailable (%s); deterministic findings only.",
+                exc,
+            )
 
-    findings.sort(key=lambda f: (f.start, f.end))
+    findings.sort(key=lambda finding: (finding.start, finding.end))
 
-    return CheckResponse(findings=findings, ai_available=ai_available)
+    return CheckResponse(
+        findings=findings,
+        ai_available=ai_available,
+    )
