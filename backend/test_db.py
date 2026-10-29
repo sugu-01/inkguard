@@ -172,3 +172,4 @@ class TestLoadFunctions:
     def test_supabase_available_false_when_none(self):
         with patch.object(db, "_supabase", None):
             assert db.supabase_available() is False
+

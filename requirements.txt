@@ -21,3 +21,4 @@ mcp>=2.3.0
 # Testing
 pytest>=9.2.0
 httpx>=0.28.1
+

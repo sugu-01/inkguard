@@ -269,3 +269,4 @@ def load_facts(company_name: str = _DEFAULT_COMPANY) -> list[dict]:
 def supabase_available() -> bool:
     """True if a Supabase client was successfully initialised."""
     return _supabase is not None
+
