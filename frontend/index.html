@@ -724,7 +724,7 @@
   <script>
     (function () {
       // Point this at your FastAPI server (uvicorn main:app --port 8000).
-      var API = "http://localhost:8000";
+      var API = "";  // relative path — works on localhost and Vercel
 
       // Sample data used only when the API is unreachable.
       var RULES = [{ id: "R-01", page: 3, quote: "Never use: guaranteed, risk-free, cure", terms: ["guaranteed", "risk-free", "cure"] }];

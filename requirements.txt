@@ -1,5 +1,5 @@
-# InkGuard — Python dependencies
-# Install with: pip install -r requirements.txt
+# InkGuard — runtime dependencies for Vercel deployment
+# Install locally with: pip install -r requirements.txt
 
 # Web framework
 fastapi>=0.141.1
@@ -15,10 +15,9 @@ groq>=1.7.0
 # PDF rule extraction
 pypdf>=6.0.0
 
-# MCP server
-mcp>=2.3.0
+# Testing (install separately in dev; not needed at runtime)
+# pytest>=9.2.0
+# httpx>=0.28.1
 
-# Testing
-pytest>=9.2.0
-httpx>=0.28.1
-
+# MCP server (run separately, not part of the Vercel deployment)
+# mcp>=2.3.0
