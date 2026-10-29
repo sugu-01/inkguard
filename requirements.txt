@@ -1,0 +1,23 @@
+# InkGuard — Python dependencies
+# Install with: pip install -r requirements.txt
+
+# Web framework
+fastapi>=0.141.1
+uvicorn>=0.52.4
+
+# Data access
+supabase>=2.33.0
+python-dotenv>=1.2.3
+
+# LLM
+groq>=1.7.0
+
+# PDF rule extraction
+pypdf>=6.0.0
+
+# MCP server
+mcp>=2.3.0
+
+# Testing
+pytest>=9.2.0
+httpx>=0.28.1
