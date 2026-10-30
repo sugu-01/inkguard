@@ -329,14 +329,23 @@ Free instances sleep when idle, so the first request can be slow.
 - [ ] Real authentication in place of `X-Role`
 - [ ] Tighter CORS and database-only storage
 
+## 👥 Team Vyom
+
+| Name | Role |
+|---|---|
+| Tharun J V | AI/ML Engineer |
+| Vishnuvardhan A | Backend Engineer |
+| Suhandhan K | Product Integration & QA Lead |
+| Vishal R S | AI Engineer |
+
 ## 🤝 Contributing
 
 Issues and PRs are welcome. Please run `pytest` before opening a PR.
 
 ## 📄 License
 
-No license has been chosen yet. Add one (for example MIT) before sharing publicly.
+Released under the [MIT License](LICENSE).
 
 ---
 
-<p align="center">Made with ☕ for the hackathon · <b>InkGuard</b>: check your copy before it ships.</p>
+<p align="center">Made with ☕ by <b>Team Vyom</b> for the hackathon · <b>InkGuard</b>: check your copy before it ships.</p>
